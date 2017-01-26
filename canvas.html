@@ -1,0 +1,134 @@
+<html>
+<head>
+<title>
+</title>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+<script type="text/javascript" src="http://clicktime.herokuapp.com/socket.io/socket.io.js"></script>
+<script type="text/javascript">
+var clickX = new Array();
+var clickY = new Array();
+var clickDrag = new Array();
+var paint;
+var context;
+var canvas;
+var i;
+var res=0;
+var base = 'http://clicktime.herokuapp.com:80/rooms/';
+var roomName = 'myroomvenky';    // Replace this with your own room name
+var myColor = '#'+Math.random().toString(16).substr(-6);
+var map = {};
+
+        var socket = io.connect(base + roomName);
+        console.log("Sending Welcome");
+        socket.emit('welcome');
+      /**
+       * These are the events that the websocket server will emit
+       *
+       * When sending messages, make sure the type is set to 'message', or other clients won't receive your data
+       * (e.g. socket.emit('message', { ... }); )
+       */
+          socket.on('welcome', function () {
+          // Connection is established, start using the socket
+          console.log("Received Welcome Message");
+      });
+
+      socket.on('message', function (data) {
+      // The 'message' event is emitted whenever another client sends a message
+      // Messages are automatically broadcasted to everyone in the room
+      // socket.emit('message', 'this is a response message!');
+        console.log("Received "+data);
+        addClick(data.x, data.y,data.dragging);
+        redraw(data.senderPen);
+      });
+
+      socket.on('heartbeat', function () {
+          // You can listen on this event to make sure your connection is receiving events correctly
+          // The server will emit a heartbeat every 30 seconds to all connected clients
+          console.log("Got heartbeat");
+      });
+
+      socket.on('error', function (err) {
+          // Sometimes things go wrong!
+          var type = err.type;    // This is the type of error that occurred
+          var message = err.message;    // This is a friendly message that should describe the error
+      });
+
+    $(document).ready(
+      function(){
+      canvas = document.getElementById('canvasInAPerfectWorld')
+      context=canvas.getContext('2d');
+      canvas.setAttribute('style','border:1px solid #000000;');
+
+    $('#canvasInAPerfectWorld').mousedown(function(e){
+      var mouseX = e.pageX - this.offsetLeft;
+      var mouseY = e.pageY - this.offsetTop;
+      paint = true;
+      sendAddClick(e.pageX - this.offsetLeft, e.pageY - this.offsetTop);
+      addClick(e.pageX - this.offsetLeft, e.pageY - this.offsetTop);
+      redraw();
+
+    });
+
+    $('#canvasInAPerfectWorld').mousemove(function(e){
+      if(paint){
+        sendAddClick(e.pageX - this.offsetLeft, e.pageY - this.offsetTop,true);
+        addClick(e.pageX - this.offsetLeft, e.pageY - this.offsetTop, true);
+        redraw();
+      }
+    });
+
+    $('#canvasInAPerfectWorld').mouseup(function(e){
+      paint = false;
+    });
+
+    $('#canvasInAPerfectWorld').mouseleave(function(e){
+      paint = false;
+    });
+        }
+      );
+
+    function sendAddClick(x,y,dragging)
+    {
+      var myObj={x:x,y:y,dragging:dragging,senderPen:myColor}
+      socket.emit('message', myObj);
+    }
+
+  function redraw(gotPen){
+    if(gotPen != null || gotPen != undefined)
+      {
+        context.strokeStyle = gotPen;}
+      else {
+        context.strokeStyle = myColor;
+      }
+      context.lineJoin = "round";
+      context.lineWidth = 5;
+
+      for(i=res; i < clickX.length; i++) {
+        context.beginPath();
+        if(clickDrag[i] && i){
+          context.moveTo(clickX[i-1], clickY[i-1]);
+        }else{
+          context.moveTo(clickX[i]-1, clickY[i]);
+        }
+      context.lineTo(clickX[i], clickY[i]);
+      context.closePath();
+      context.stroke();
+      }
+      res=clickX.length;
+  }
+
+
+    function addClick(x, y, dragging)
+    {
+      clickX.push(x);
+      clickY.push(y);
+      clickDrag.push(dragging);
+    }
+
+
+</script>
+</head>
+<body>
+<canvas id="canvasInAPerfectWorld" width="890" height="520"></canvas>
+</body>
+</html>
